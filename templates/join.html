@@ -19,7 +19,7 @@
         <div class="card">
           <div class="label">你的昵称（临时）</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
-            <input id="nickname" class="input" maxlength="20" placeholder="例如：小王 / 1号 / Gary…" />
+            <input id="nickname" class="input" maxlength="20" placeholder="例如：小秦 / 12号 / Oliver…" />
             <button id="btnSave" class="btn primary" type="button">确认昵称</button>
           </div>
           <div class="label">请选择分组</div>
@@ -73,12 +73,7 @@
         localStorage.setItem(nickKey, nickname);
         hint.textContent = `昵称已保存：${nickname}（接下来选择 A/B 组）`;
       });
-
-      const savedTeam = localStorage.getItem(teamKey);
-      if ((savedTeam === "A" || savedTeam === "B") && savedNick) {
-        // auto re-join silently, then go to team page
-        join(savedTeam);
-      }
+      // 不自动“重加入”。老师点清零后，若名单要清空，需要同学再手动点一次 A/B 并确认昵称。
 
       document.getElementById("btnA").addEventListener("click", () => {
         join("A");
