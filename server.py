@@ -176,7 +176,11 @@ def create_app() -> Flask:
 
   @app.get("/")
   def root() -> Response:
-    return redirect(url_for("student", team="A"))
+    return redirect(url_for("join"))
+
+  @app.get("/s")
+  def join() -> Response:
+    return Response(render_template("join.html"))
 
   @app.get("/teacher")
   def teacher() -> Response:

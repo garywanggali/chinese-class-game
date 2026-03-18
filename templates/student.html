@@ -15,6 +15,7 @@
         </div>
         <div class="actions">
           <div class="pill">当前组：<strong>{{ team }}</strong></div>
+          <a class="btn" href="/s" style="text-decoration:none;">切换分组</a>
           <div class="pill">状态：<strong id="status">-</strong></div>
           <div class="pill">剩余：<strong id="remain">-</strong></div>
         </div>
@@ -47,6 +48,8 @@
 
     <script>
       const TEAM = "{{ team }}";
+      // Remember the choice on this device
+      try { localStorage.setItem("kahoot_team_v1", TEAM); } catch {}
       const els = {
         q: document.getElementById("q"),
         opts: document.getElementById("opts"),

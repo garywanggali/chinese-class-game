@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>选择分组｜苏轼课堂对战</title>
+    <link rel="stylesheet" href="/static/kahoot.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div>
+          <h1>加入对战</h1>
+          <div class="sub">先选择你所在的大组。选好后会自动进入答题页面（下次打开也会记住）。</div>
+        </div>
+      </header>
+
+      <section class="grid" style="grid-template-columns:1fr;">
+        <div class="card">
+          <div class="label">请选择分组</div>
+          <div class="btnGrid" style="grid-template-columns:1fr 1fr;">
+            <button id="btnA" class="bigBtn" type="button">A<div class="bigBtnText">A 组</div></button>
+            <button id="btnB" class="bigBtn" type="button">B<div class="bigBtnText">B 组</div></button>
+          </div>
+          <div class="hint">如果选错了，随时回到本页重新选择。</div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const key = "kahoot_team_v1";
+      const saved = localStorage.getItem(key);
+      if (saved === "A" || saved === "B") {
+        location.replace(`/s/${saved}`);
+      }
+
+      document.getElementById("btnA").addEventListener("click", () => {
+        localStorage.setItem(key, "A");
+        location.href = "/s/A";
+      });
+      document.getElementById("btnB").addEventListener("click", () => {
+        localStorage.setItem(key, "B");
+        location.href = "/s/B";
+      });
+    </script>
+  </body>
+</html>
+
