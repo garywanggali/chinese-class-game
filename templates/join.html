@@ -37,12 +37,6 @@
       const nickKey = "kahoot_nickname_v1";
       const tokenKey = "kahoot_token_v1";
 
-      let token = localStorage.getItem(tokenKey);
-      if (!token) {
-        token = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        localStorage.setItem(tokenKey, token);
-      }
-
       const nickInput = document.getElementById("nickname");
       const hint = document.getElementById("hint");
       const savedNick = localStorage.getItem(nickKey) || "";
@@ -53,6 +47,12 @@
         if (!nickname) {
           hint.textContent = "请先输入昵称。";
           return;
+        }
+        let token = localStorage.getItem(tokenKey);
+        if (!token) {
+          // token 只在“确认加入”时生成，避免学生只刷新页面就产生 token
+          token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+          localStorage.setItem(tokenKey, token);
         }
         localStorage.setItem(nickKey, nickname);
         localStorage.setItem(teamKey, team);

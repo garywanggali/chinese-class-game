@@ -48,8 +48,6 @@
 
     <script>
       const TEAM = "{{ team }}";
-      // Remember the choice on this device
-      try { localStorage.setItem("kahoot_team_v1", TEAM); } catch {}
       const els = {
         q: document.getElementById("q"),
         opts: document.getElementById("opts"),
@@ -67,6 +65,8 @@
         // 而是强制回到 /s 走“输入昵称 + 加入分组”的流程。
         location.replace("/s");
       }
+      // token 存在后再记住组别，避免只刷新就写入 kahoot_team_v1
+      try { localStorage.setItem("kahoot_team_v1", TEAM); } catch {}
 
       let active = null;
       let answeredRound = null;
