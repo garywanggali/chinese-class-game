@@ -69,14 +69,19 @@
 
       let active = null;
       let answeredRound = null;
+      let lastAnswer = null; // { round_id, choice }
       let tickTimer = null;
 
       function setMsg(t) { els.msg.textContent = t || ""; }
 
       function render(s) {
-        els.scoreA.textContent = s.team_score?.A ?? 0;
-        els.scoreB.textContent = s.team_score?.B ?? 0;
-        active = s.active_round;
+        // round_ended 事件会发 {state, round_summary}，兼容两种形态
+        const base = s && s.state ? s.state : s;
+        const summary = s && s.round_summary ? s.round_summary : null;
+
+        els.scoreA.textContent = base.team_score?.A ?? 0;
+        els.scoreB.textContent = base.team_score?.B ?? 0;
+        active = base.active_round;
         if (!active) {
           els.q.textContent = "等待老师开始…";
           els.opts.innerHTML = "";
@@ -84,6 +89,7 @@
           els.remain.textContent = "-";
           setMsg("");
           answeredRound = null;
+          lastAnswer = null;
           return;
         }
 
@@ -106,8 +112,21 @@
           els.opts.appendChild(b);
         });
 
-        if (answeredRound === active.round_id) setMsg("已提交，等待本题结束…");
-        else setMsg("");
+        // Show result after round ends
+        if (active.ended_at_ms) {
+          const correctIndex = typeof active.correct_index === "number" ? active.correct_index : (summary ? summary.correct_index : null);
+          const correctLetter = typeof correctIndex === "number" ? String.fromCharCode(65 + correctIndex) : "?";
+          if (lastAnswer && lastAnswer.round_id === active.round_id) {
+            const isCorrect = typeof correctIndex === "number" && lastAnswer.choice === correctIndex;
+            setMsg(isCorrect ? `本题：答对了！正确答案：${correctLetter}` : `本题：答错了。正确答案：${correctLetter}`);
+          } else {
+            setMsg(`本题已结束。正确答案：${correctLetter}`);
+          }
+        } else if (answeredRound === active.round_id) {
+          setMsg("已提交，等待本题结束…");
+        } else {
+          setMsg("");
+        }
       }
 
       async function submit(choice) {
@@ -124,6 +143,7 @@
           return;
         }
         answeredRound = active.round_id;
+        lastAnswer = { round_id: active.round_id, choice };
         setMsg("已提交，等待本题结束…");
         // disable buttons
         for (const b of els.opts.querySelectorAll("button")) b.disabled = true;
