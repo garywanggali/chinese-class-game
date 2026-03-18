@@ -32,12 +32,35 @@
         <div class="card">
           <div class="label">当前题目</div>
           <div id="q" class="q">等待开始…</div>
-          <div class="meta">
-            <div>状态：<span id="status">-</span></div>
-            <div>剩余：<span id="remain">-</span></div>
+          <div class="timerBig" id="timerBox">
+            <div>
+              <div class="timerLabel">倒计时</div>
+              <div class="timerNum" id="remainBig">-</div>
+            </div>
+            <div style="flex:1;">
+              <div class="timerLabel">进度</div>
+              <div class="bar"><div id="barFill"></div></div>
+            </div>
+            <div class="meta" style="margin:0;">
+              <div>状态：<span id="status">-</span></div>
+            </div>
           </div>
           <div id="options" class="options"></div>
           <div class="hint">学生端入口：统一入口 `/s`（同学先选 A/B 组）；也兼容直达 `/s/A`、`/s/B`。</div>
+          <div class="revealBox" id="reveal" style="display:none;">
+            <div class="revealTitle">本题结算</div>
+            <div class="revealCorrect" id="revealCorrect"></div>
+            <div class="cols2">
+              <div>
+                <div class="small">A 组：答对 / 答错</div>
+                <div id="aResult"></div>
+              </div>
+              <div>
+                <div class="small">B 组：答对 / 答错</div>
+                <div id="bResult"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -73,6 +96,13 @@
         options: document.getElementById("options"),
         status: document.getElementById("status"),
         remain: document.getElementById("remain"),
+        timerBox: document.getElementById("timerBox"),
+        remainBig: document.getElementById("remainBig"),
+        barFill: document.getElementById("barFill"),
+        reveal: document.getElementById("reveal"),
+        revealCorrect: document.getElementById("revealCorrect"),
+        aResult: document.getElementById("aResult"),
+        bResult: document.getElementById("bResult"),
         scoreA: document.getElementById("scoreA"),
         scoreB: document.getElementById("scoreB"),
         accA: document.getElementById("accA"),
@@ -88,14 +118,48 @@
 
       let active = null;
       let tickTimer = null;
+      let lastRoundId = null;
+
+      function renderReveal(summary) {
+        if (!summary) return;
+        const ci = summary.correct_index;
+        const letter = String.fromCharCode(65 + (ci || 0));
+        els.revealCorrect.textContent = `正确答案：${letter}. ${summary.correct_text || ""}`;
+
+        const mk = (x) => {
+          const div = document.createElement("div");
+          div.className = "nameLine";
+          div.innerHTML = `<strong>${x.name}</strong><span>${x.pts ? "+" + x.pts : "0"} 分</span>`;
+          return div;
+        };
+        els.aResult.innerHTML = "";
+        els.bResult.innerHTML = "";
+        const aC = (summary.teams?.A?.correct || []).map(mk);
+        const aW = (summary.teams?.A?.wrong || []).map(mk);
+        const bC = (summary.teams?.B?.correct || []).map(mk);
+        const bW = (summary.teams?.B?.wrong || []).map(mk);
+        [...aC, ...aW].forEach((n) => els.aResult.appendChild(n));
+        [...bC, ...bW].forEach((n) => els.bResult.appendChild(n));
+        els.reveal.style.display = "";
+      }
+
+      function hideReveal() {
+        els.reveal.style.display = "none";
+        els.aResult.innerHTML = "";
+        els.bResult.innerHTML = "";
+      }
 
       function renderState(s) {
-        els.scoreA.textContent = s.team_score?.A ?? 0;
-        els.scoreB.textContent = s.team_score?.B ?? 0;
-        els.accA.textContent = `${s.team_correct?.A ?? 0}/${s.team_total?.A ?? 0}`;
-        els.accB.textContent = `${s.team_correct?.B ?? 0}/${s.team_total?.B ?? 0}`;
+        // round_ended 事件会发 {state, round_summary}，兼容两种形态
+        const summary = s && s.round_summary ? s.round_summary : null;
+        const base = s && s.state ? s.state : s;
 
-        const roster = s.roster || { A: [], B: [] };
+        els.scoreA.textContent = base.team_score?.A ?? 0;
+        els.scoreB.textContent = base.team_score?.B ?? 0;
+        els.accA.textContent = `${base.team_correct?.A ?? 0}/${base.team_total?.A ?? 0}`;
+        els.accB.textContent = `${base.team_correct?.B ?? 0}/${base.team_total?.B ?? 0}`;
+
+        const roster = base.roster || { A: [], B: [] };
         const listA = Array.isArray(roster.A) ? roster.A.filter(Boolean) : [];
         const listB = Array.isArray(roster.B) ? roster.B.filter(Boolean) : [];
         els.countA.textContent = String(listA.length);
@@ -115,12 +179,15 @@
           els.listB.appendChild(t);
         });
 
-        active = s.active_round;
+        active = base.active_round;
         if (!active) {
           els.q.textContent = "等待开始…";
           els.options.innerHTML = "";
           els.status.textContent = "空闲";
-          els.remain.textContent = "-";
+          els.remainBig.textContent = "-";
+          els.barFill.style.width = "0%";
+          els.timerBox.classList.remove("danger", "ending");
+          hideReveal();
           return;
         }
         els.q.textContent = active.q;
@@ -128,10 +195,22 @@
         active.options.forEach((t, i) => {
           const div = document.createElement("div");
           div.className = "opt";
-          div.textContent = `${String.fromCharCode(65+i)}. ${t}`;
+          const prefix = `${String.fromCharCode(65+i)}. `;
+          div.textContent = prefix + t;
+          // reveal correct when ended
+          if (active.ended_at_ms && active.correct_index === i) {
+            div.style.borderColor = "rgba(54,211,153,.6)";
+            div.style.background = "rgba(54,211,153,.14)";
+          }
           els.options.appendChild(div);
         });
         els.status.textContent = active.ended_at_ms ? "已结束" : "进行中";
+
+        if (active.round_id !== lastRoundId) {
+          lastRoundId = active.round_id;
+          hideReveal();
+        }
+        if (summary) renderReveal(summary);
       }
 
       async function fetchTeacherState() {
@@ -159,12 +238,19 @@
         if (tickTimer) clearInterval(tickTimer);
         tickTimer = setInterval(() => {
           if (!active || !active.ends_at_ms) {
-            els.remain.textContent = "-";
+            els.remainBig.textContent = "-";
+            els.barFill.style.width = "0%";
+            els.timerBox.classList.remove("danger", "ending");
             return;
           }
           const ms = active.ends_at_ms - Date.now();
-          const s = Math.max(0, Math.ceil(ms / 1000));
-          els.remain.textContent = `${s}s`;
+          const sec = Math.max(0, Math.ceil(ms / 1000));
+          els.remainBig.textContent = `${sec}s`;
+          const total = Math.max(1, (active.duration_s || 1) * 1000);
+          const pct = Math.max(0, Math.min(1, ms / total));
+          els.barFill.style.width = `${Math.round(pct * 100)}%`;
+          els.timerBox.classList.toggle("danger", sec <= 5 && sec > 2);
+          els.timerBox.classList.toggle("ending", sec <= 2);
         }, 200);
       }
 

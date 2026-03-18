@@ -63,6 +63,32 @@ h1{margin:0;font-size:20px;letter-spacing:.3px}
 .label{color:var(--muted);font-size:12px;margin-bottom:10px}
 .q{font-size:18px;line-height:1.5;margin:0 0 10px}
 .meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:10px}
+.timerBig{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:12px 14px;
+  margin:12px 0 12px;
+}
+.timerNum{font-size:34px;font-weight:900;letter-spacing:.5px}
+.timerLabel{color:var(--muted);font-size:12px}
+.bar{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.10)}
+.bar > div{height:100%;width:0%;background:linear-gradient(90deg, rgba(124,219,255,.8), rgba(54,211,153,.75));transition:width 180ms linear}
+.timerBig.danger .timerNum{color:var(--warn,#fbbf24)}
+.timerBig.ending .timerNum{color:var(--bad)}
+.revealBox{
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:rgba(255,255,255,.05);
+  padding:12px 12px;
+}
+.revealTitle{font-size:14px;color:var(--muted);margin-bottom:8px}
+.revealCorrect{font-size:15px;line-height:1.45}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.nameLine{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.18);border-radius:12px;padding:8px 10px;color:var(--muted);font-size:12px}
+.nameLine strong{color:var(--text);font-weight:700}
 .options{display:grid;gap:8px}
 .opt{
   border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05);

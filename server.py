@@ -49,6 +49,8 @@ class RoundState:
   ended_at_ms: Optional[int] = None
   # team -> {token -> (choice_index, answered_at_ms)}
   answers: Dict[str, Dict[str, Tuple[int, int]]] = field(default_factory=lambda: {"A": {}, "B": {}})
+  # team -> {token -> points_awarded}
+  points: Dict[str, Dict[str, int]] = field(default_factory=lambda: {"A": {}, "B": {}})
 
 
 @dataclass
@@ -130,6 +132,8 @@ def create_app() -> Flask:
           "ends_at_ms": ends_at,
           "ended_at_ms": r.ended_at_ms,
         }
+        if r.ended_at_ms is not None:
+          active["correct_index"] = r.correct_index
       return {
         "active_round": active,
         "team_score": dict(state.team_score),
@@ -157,27 +161,53 @@ def create_app() -> Flask:
     return snap
 
   def close_round_if_needed() -> None:
+    ended_payload: Optional[Dict[str, Any]] = None
     with lock:
       r = state.active_round
       if not r or r.ended_at_ms is not None:
         return
       if now_ms() < r.started_at_ms + r.duration_s * 1000:
         return
+
       r.ended_at_ms = now_ms()
+
+      round_summary: Dict[str, Any] = {
+        "round_id": r.round_id,
+        "correct_index": r.correct_index,
+        "correct_text": r.options[r.correct_index] if 0 <= r.correct_index < len(r.options) else "",
+        "teams": {"A": {"correct": [], "wrong": []}, "B": {"correct": [], "wrong": []}},
+      }
 
       for team in ("A", "B"):
         # Team totals = number of distinct answer tokens
         state.team_total[team] += len(r.answers[team])
-        # Score rule: each correct answer gives 1000 - time_ms/10 points, min 100
-        # If wrong, 0 points.
-        for _, (choice, at_ms) in r.answers[team].items():
-          if choice == r.correct_index:
+        for token, (choice, at_ms) in r.answers[team].items():
+          is_correct = choice == r.correct_index
+          nickname = (state.roster.get(team, {}).get(token, {}) or {}).get("nickname") or "匿名"
+          if is_correct:
             state.team_correct[team] += 1
             dt = max(0, at_ms - r.started_at_ms)
             pts = max(100, 1000 - int(dt / 10))
             state.team_score[team] += pts
+            r.points[team][token] = pts
+            round_summary["teams"][team]["correct"].append({"name": nickname, "pts": pts})
+          else:
+            r.points[team][token] = 0
+            round_summary["teams"][team]["wrong"].append({"name": nickname, "pts": 0})
 
-    emit("round_ended", public_snapshot())
+      ended_payload = {"state": public_snapshot(), "round_summary": round_summary}
+
+    emit("round_ended", ended_payload)
+
+  def _round_watcher() -> None:
+    while True:
+      try:
+        close_round_if_needed()
+      except Exception:
+        pass
+      time.sleep(0.2)
+
+  threading.Thread(target=_round_watcher, daemon=True).start()
 
   # --------- routes ----------
 
