@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>教师端登录｜苏轼课堂对战</title>
+    <link rel="stylesheet" href="/static/kahoot.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div>
+          <h1>教师端登录</h1>
+          <div class="sub">输入课堂密码后，才能开始一题/清零比分。</div>
+        </div>
+      </header>
+
+      <section class="grid" style="grid-template-columns:1fr;">
+        <div class="card">
+          <div class="label">课堂密码</div>
+          <form method="POST" action="/teacher-login">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input class="input" name="password" type="password" placeholder="请输入密码" autofocus />
+              <button class="btn primary" type="submit">登录</button>
+            </div>
+            {% if error %}
+            <div style="margin-top:12px;color:#fb7185;font-size:13px;">{{ error }}</div>
+            {% endif %}
+            {% if not has_password %}
+            <div style="margin-top:12px;color:rgba(255,255,255,.7);font-size:13px;">
+              当前服务器未设置 `TEACHER_PASSWORD`，老师端将无法登录。
+            </div>
+            {% endif %}
+          </form>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
+

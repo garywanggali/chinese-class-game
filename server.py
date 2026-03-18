@@ -1,4 +1,5 @@
 import json
+import os
 import secrets
 import threading
 import time
@@ -94,6 +95,7 @@ def create_app() -> Flask:
 
   qa = load_qa()
   teacher_key = secrets.token_urlsafe(16)
+  teacher_password = os.environ.get("TEACHER_PASSWORD", "").strip()
   state = GameState(qa=qa, teacher_key=teacher_key)
   bus = EventBus()
   lock = threading.Lock()
@@ -108,6 +110,10 @@ def create_app() -> Flask:
     key = request.headers.get("X-Teacher-Key") or request.args.get("key") or request.cookies.get("teacher_key")
     if key != state.teacher_key:
       abort(403)
+
+  def teacher_authed() -> bool:
+    key = request.cookies.get("teacher_key")
+    return key == state.teacher_key
 
   def build_options(correct: str, n: int = 4) -> Tuple[List[str], int]:
     pool = [x["a"] for x in state.qa if x["a"] != correct]
@@ -253,8 +259,23 @@ def create_app() -> Flask:
 
   @app.get("/teacher")
   def teacher() -> Response:
-    # teacher key is kept server-side; we set it into a cookie for convenience on this machine
-    resp = Response(render_template("teacher.html"))
+    if not teacher_authed():
+      return redirect(url_for("teacher_login"))
+    return Response(render_template("teacher.html"))
+
+  @app.get("/teacher-login")
+  def teacher_login() -> Response:
+    return Response(render_template("teacher_login.html", has_password=bool(teacher_password)))
+
+  @app.post("/teacher-login")
+  def teacher_login_post() -> Response:
+    if not teacher_password:
+      abort(403)
+    body = request.form or {}
+    pw = (body.get("password") or "").strip()
+    if pw != teacher_password:
+      return Response(render_template("teacher_login.html", error="密码错误", has_password=True), status=403)
+    resp = Response(redirect(url_for("teacher")))
     resp.set_cookie("teacher_key", state.teacher_key, httponly=False, samesite="Lax")
     return resp
 
