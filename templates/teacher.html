@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>教师端｜苏轼课堂对战</title>
+    <link rel="stylesheet" href="/static/kahoot.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div>
+          <h1>教师端｜苏轼课堂对战</h1>
+          <div class="sub">全班分两大组：A 组 vs B 组。老师控制出题与倒计时，投屏看比分。</div>
+        </div>
+        <div class="actions">
+          <label class="pill">
+            倒计时（秒）
+            <select id="duration" class="select">
+              <option value="10">10</option>
+              <option value="15" selected>15</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+            </select>
+          </label>
+          <button id="btnStart" class="btn primary">开始一题</button>
+          <button id="btnReset" class="btn">清零比分</button>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="card">
+          <div class="label">当前题目</div>
+          <div id="q" class="q">等待开始…</div>
+          <div class="meta">
+            <div>状态：<span id="status">-</span></div>
+            <div>剩余：<span id="remain">-</span></div>
+          </div>
+          <div id="options" class="options"></div>
+          <div class="hint">学生端入口：A 组 `/s/A`，B 组 `/s/B`（同学用手机打开）。</div>
+        </div>
+
+        <div class="card">
+          <div class="label">比分（速度 + 正确率）</div>
+          <div class="scoreRow">
+            <div class="teamBox">
+              <div class="teamTitle">A 组</div>
+              <div class="score" id="scoreA">0</div>
+              <div class="small">正确/作答：<span id="accA">0/0</span></div>
+            </div>
+            <div class="teamBox">
+              <div class="teamTitle">B 组</div>
+              <div class="score" id="scoreB">0</div>
+              <div class="small">正确/作答：<span id="accB">0/0</span></div>
+            </div>
+          </div>
+          <div class="hint">
+            计分规则（可改）：每个正确答案按速度计分，\( \text{pts}=\max(100, 1000-\lfloor\Delta t/10\rfloor) \)；错题 0 分。
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const els = {
+        q: document.getElementById("q"),
+        options: document.getElementById("options"),
+        status: document.getElementById("status"),
+        remain: document.getElementById("remain"),
+        scoreA: document.getElementById("scoreA"),
+        scoreB: document.getElementById("scoreB"),
+        accA: document.getElementById("accA"),
+        accB: document.getElementById("accB"),
+        duration: document.getElementById("duration"),
+        btnStart: document.getElementById("btnStart"),
+        btnReset: document.getElementById("btnReset"),
+      };
+
+      let active = null;
+      let tickTimer = null;
+
+      function renderState(s) {
+        els.scoreA.textContent = s.team_score?.A ?? 0;
+        els.scoreB.textContent = s.team_score?.B ?? 0;
+        els.accA.textContent = `${s.team_correct?.A ?? 0}/${s.team_total?.A ?? 0}`;
+        els.accB.textContent = `${s.team_correct?.B ?? 0}/${s.team_total?.B ?? 0}`;
+
+        active = s.active_round;
+        if (!active) {
+          els.q.textContent = "等待开始…";
+          els.options.innerHTML = "";
+          els.status.textContent = "空闲";
+          els.remain.textContent = "-";
+          return;
+        }
+        els.q.textContent = active.q;
+        els.options.innerHTML = "";
+        active.options.forEach((t, i) => {
+          const div = document.createElement("div");
+          div.className = "opt";
+          div.textContent = `${String.fromCharCode(65+i)}. ${t}`;
+          els.options.appendChild(div);
+        });
+        els.status.textContent = active.ended_at_ms ? "已结束" : "进行中";
+      }
+
+      async function fetchTeacherState() {
+        const res = await fetch("/api/teacher/state", { cache: "no-store" });
+        if (!res.ok) throw new Error("无法获取教师端状态（可能缺少权限/cookie）");
+        return await res.json();
+      }
+
+      async function startRound() {
+        const duration_s = parseInt(els.duration.value, 10) || 15;
+        const res = await fetch("/api/teacher/start_round", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duration_s }),
+        });
+        if (!res.ok) throw new Error("开始失败");
+      }
+
+      async function resetGame() {
+        const res = await fetch("/api/teacher/reset", { method: "POST" });
+        if (!res.ok) throw new Error("清零失败");
+      }
+
+      function startTicker() {
+        if (tickTimer) clearInterval(tickTimer);
+        tickTimer = setInterval(() => {
+          if (!active || !active.ends_at_ms) {
+            els.remain.textContent = "-";
+            return;
+          }
+          const ms = active.ends_at_ms - Date.now();
+          const s = Math.max(0, Math.ceil(ms / 1000));
+          els.remain.textContent = `${s}s`;
+        }, 200);
+      }
+
+      function connectEvents() {
+        const es = new EventSource("/api/events");
+        es.addEventListener("snapshot", (e) => renderState(JSON.parse(e.data)));
+        es.addEventListener("round_started", (e) => renderState(JSON.parse(e.data)));
+        es.addEventListener("round_ended", (e) => renderState(JSON.parse(e.data)));
+        es.addEventListener("reset", (e) => renderState(JSON.parse(e.data)));
+        es.onerror = () => {
+          // fallback: teacher state polling
+          setTimeout(async () => {
+            try { renderState(await fetchTeacherState()); } catch {}
+          }, 800);
+        };
+      }
+
+      els.btnStart.addEventListener("click", async () => {
+        els.btnStart.disabled = true;
+        try {
+          await startRound();
+        } finally {
+          setTimeout(() => (els.btnStart.disabled = false), 600);
+        }
+      });
+
+      els.btnReset.addEventListener("click", async () => {
+        els.btnReset.disabled = true;
+        try {
+          await resetGame();
+        } finally {
+          setTimeout(() => (els.btnReset.disabled = false), 600);
+        }
+      });
+
+      (async function init() {
+        renderState(await fetchTeacherState());
+        connectEvents();
+        startTicker();
+      })().catch((err) => {
+        document.body.innerHTML = `<pre style="white-space:pre-wrap;padding:16px;color:#fff;background:#0b1020">加载失败：${err.message || err}</pre>`;
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学生端｜{{ team }}组</title>
+    <link rel="stylesheet" href="/static/kahoot.css?v=1" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div>
+          <h1>学生端｜{{ team }}组</h1>
+          <div class="sub">看到题目后，尽快选 A/B/C/D。每台手机每题只能提交一次。</div>
+        </div>
+        <div class="actions">
+          <div class="pill">当前组：<strong>{{ team }}</strong></div>
+          <div class="pill">状态：<strong id="status">-</strong></div>
+          <div class="pill">剩余：<strong id="remain">-</strong></div>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="card">
+          <div class="label">题目</div>
+          <div id="q" class="q">等待老师开始…</div>
+          <div id="opts" class="btnGrid"></div>
+          <div id="msg" class="hint"></div>
+        </div>
+
+        <div class="card">
+          <div class="label">比分</div>
+          <div class="scoreRow">
+            <div class="teamBox">
+              <div class="teamTitle">A 组</div>
+              <div class="score" id="scoreA">0</div>
+            </div>
+            <div class="teamBox">
+              <div class="teamTitle">B 组</div>
+              <div class="score" id="scoreB">0</div>
+            </div>
+          </div>
+          <div class="hint">提示：答题后会显示“已提交”。正确与否由老师统一公布。</div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const TEAM = "{{ team }}";
+      const els = {
+        q: document.getElementById("q"),
+        opts: document.getElementById("opts"),
+        msg: document.getElementById("msg"),
+        status: document.getElementById("status"),
+        remain: document.getElementById("remain"),
+        scoreA: document.getElementById("scoreA"),
+        scoreB: document.getElementById("scoreB"),
+      };
+
+      const tokenKey = "kahoot_token_v1";
+      let token = localStorage.getItem(tokenKey);
+      if (!token) {
+        token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(tokenKey, token);
+      }
+
+      let active = null;
+      let answeredRound = null;
+      let tickTimer = null;
+
+      function setMsg(t) { els.msg.textContent = t || ""; }
+
+      function render(s) {
+        els.scoreA.textContent = s.team_score?.A ?? 0;
+        els.scoreB.textContent = s.team_score?.B ?? 0;
+        active = s.active_round;
+        if (!active) {
+          els.q.textContent = "等待老师开始…";
+          els.opts.innerHTML = "";
+          els.status.textContent = "空闲";
+          els.remain.textContent = "-";
+          setMsg("");
+          answeredRound = null;
+          return;
+        }
+
+        els.q.textContent = active.q;
+        els.status.textContent = active.ended_at_ms ? "已结束" : "进行中";
+        const canAnswer = !active.ended_at_ms && answeredRound !== active.round_id;
+
+        els.opts.innerHTML = "";
+        active.options.forEach((t, i) => {
+          const b = document.createElement("button");
+          b.className = "bigBtn";
+          b.disabled = !canAnswer;
+          b.dataset.choice = i;
+          b.textContent = String.fromCharCode(65 + i);
+          const small = document.createElement("div");
+          small.className = "bigBtnText";
+          small.textContent = t;
+          b.appendChild(small);
+          b.addEventListener("click", () => submit(i));
+          els.opts.appendChild(b);
+        });
+
+        if (answeredRound === active.round_id) setMsg("已提交，等待本题结束…");
+        else setMsg("");
+      }
+
+      async function submit(choice) {
+        if (!active) return;
+        if (answeredRound === active.round_id) return;
+        const res = await fetch("/api/answer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ team: TEAM, token, choice }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          setMsg("提交失败：" + (data.reason || res.status));
+          return;
+        }
+        answeredRound = active.round_id;
+        setMsg("已提交，等待本题结束…");
+        // disable buttons
+        for (const b of els.opts.querySelectorAll("button")) b.disabled = true;
+      }
+
+      async function fetchState() {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (!res.ok) throw new Error("无法获取状态");
+        return await res.json();
+      }
+
+      function startTicker() {
+        if (tickTimer) clearInterval(tickTimer);
+        tickTimer = setInterval(() => {
+          if (!active || !active.ends_at_ms) {
+            els.remain.textContent = "-";
+            return;
+          }
+          const ms = active.ends_at_ms - Date.now();
+          const s = Math.max(0, Math.ceil(ms / 1000));
+          els.remain.textContent = `${s}s`;
+        }, 200);
+      }
+
+      function connectEvents() {
+        const es = new EventSource("/api/events");
+        es.addEventListener("snapshot", (e) => render(JSON.parse(e.data)));
+        es.addEventListener("round_started", (e) => render(JSON.parse(e.data)));
+        es.addEventListener("round_ended", (e) => render(JSON.parse(e.data)));
+        es.addEventListener("reset", (e) => render(JSON.parse(e.data)));
+        es.onerror = () => {
+          // fallback polling
+          setTimeout(async () => { try { render(await fetchState()); } catch {} }, 800);
+        };
+      }
+
+      (async function init() {
+        render(await fetchState());
+        connectEvents();
+        startTicker();
+      })().catch((err) => {
+        document.body.innerHTML = `<pre style="white-space:pre-wrap;padding:16px;color:#fff;background:#0b1020">加载失败：${err.message || err}</pre>`;
+      });
+    </script>
+  </body>
+</html>
+
