@@ -145,6 +145,34 @@ def create_app() -> Flask:
         },
       }
 
+  def _public_snapshot_locked() -> Dict[str, Any]:
+    # MUST be called with lock held
+    r = state.active_round
+    active = None
+    if r:
+      ends_at = r.started_at_ms + r.duration_s * 1000
+      active = {
+        "round_id": r.round_id,
+        "q": r.q,
+        "options": r.options,
+        "started_at_ms": r.started_at_ms,
+        "duration_s": r.duration_s,
+        "ends_at_ms": ends_at,
+        "ended_at_ms": r.ended_at_ms,
+      }
+      if r.ended_at_ms is not None:
+        active["correct_index"] = r.correct_index
+    return {
+      "active_round": active,
+      "team_score": dict(state.team_score),
+      "team_correct": dict(state.team_correct),
+      "team_total": dict(state.team_total),
+      "roster": {
+        "A": [v.get("nickname") for v in state.roster["A"].values()],
+        "B": [v.get("nickname") for v in state.roster["B"].values()],
+      },
+    }
+
   def teacher_snapshot() -> Dict[str, Any]:
     snap = public_snapshot()
     with lock:
@@ -195,7 +223,7 @@ def create_app() -> Flask:
             r.points[team][token] = 0
             round_summary["teams"][team]["wrong"].append({"name": nickname, "pts": 0})
 
-      ended_payload = {"state": public_snapshot(), "round_summary": round_summary}
+      ended_payload = {"state": _public_snapshot_locked(), "round_summary": round_summary}
 
     emit("round_ended", ended_payload)
 
