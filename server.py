@@ -283,7 +283,7 @@ def create_app() -> Flask:
       pw = (body.get("password") or "").strip()
       if pw != teacher_password:
         return Response(render_template("teacher_login.html", error="密码错误", has_password=True), status=403)
-      resp = Response(redirect(url_for("teacher")))
+      resp = redirect(url_for("teacher"))
       resp.set_cookie("teacher_key", state.teacher_key, httponly=False, samesite="Lax")
       return resp
     except Exception:
