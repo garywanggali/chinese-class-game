@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>苏轼·课堂问答游戏</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="wrap" id="app">
+      <header>
+        <div class="title">
+          <h1>苏轼·课堂问答游戏</h1>
+          <div class="sub">
+            两种玩法：选择题（单人/全班抢答）与配对题（分组合作）。
+            题库来自 <span class="kbd">data/qa.json</span>，可随时替换。
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="pill">题库：<strong id="pill-total">-</strong></div>
+          <div class="pill">进度：<strong id="pill-progress">-</strong></div>
+          <div class="pill">得分：<strong id="pill-score">-</strong></div>
+          <button class="btn ghost" id="btnRestart" type="button">再来一轮</button>
+        </div>
+      </header>
+
+      <div class="panel card">
+        <div class="modeTabs" aria-label="玩法切换">
+          <button class="tab active" id="tab-mcq" type="button">选择题</button>
+          <button class="tab" id="tab-match" type="button">配对</button>
+        </div>
+        <div class="footerNote">
+          小技巧：选择题模式下，答完后按 <span class="kbd">Enter</span> 进入下一题（或点“下一题”）。
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="grid2">
+          <section class="panel card" id="mcqView">
+            <p class="q" id="mcqQuestion">加载中…</p>
+            <p class="hint" id="mcqHint"></p>
+            <div class="answers" id="mcqAnswers"></div>
+            <div class="resultLine">
+              <div id="mcqExplain"></div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <span class="small">快捷键：<span class="kbd">Enter</span></span>
+                <button class="btn primary" id="btnNext" type="button" disabled>下一题</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel card" id="matchView" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+              <div>
+                <p class="q" style="margin-bottom:6px;">配对模式</p>
+                <p class="hint" id="matchExplain">加载中…</p>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <label class="pill" style="gap:8px;">
+                  抽取题数
+                  <select id="matchSize" class="btn" style="padding:8px 10px; border-radius:10px;">
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6" selected>6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+                <button class="btn primary" id="btnNewMatch" type="button">再来一轮</button>
+              </div>
+            </div>
+            <div class="matchWrap">
+              <div class="matchCols">
+                <div class="answers" id="matchLeft"></div>
+                <div class="answers" id="matchRight"></div>
+              </div>
+              <div class="footerNote">
+                教学建议：可以把全班分成若干组，每组轮流上台配对；配对成功得 1 分，错配不扣分（也可改为扣分制）。
+              </div>
+            </div>
+          </section>
+
+          <aside class="panel card">
+            <p class="q" style="margin-bottom:8px;">教师小面板</p>
+            <p class="hint" style="margin-top:0;">
+              你可以随时替换题库文件 <span class="kbd">data/qa.json</span>（格式：<span class="kbd">[{ "q": "...", "a": "..." }]</span>）。
+            </p>
+            <div class="footerNote">
+              如果你希望“多选/配对”以外的玩法（比如抢答计时、闯关、排行榜、投屏大字版、题目按主题分组），我也可以继续加。
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+
