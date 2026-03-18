@@ -79,8 +79,8 @@
         const base = s && s.state ? s.state : s;
         const summary = s && s.round_summary ? s.round_summary : null;
 
-        els.scoreA.textContent = base.team_score?.A ?? 0;
-        els.scoreB.textContent = base.team_score?.B ?? 0;
+        els.scoreA.textContent = (base.team_score && base.team_score.A) ? base.team_score.A : 0;
+        els.scoreB.textContent = (base.team_score && base.team_score.B) ? base.team_score.B : 0;
         active = base.active_round;
         if (!active) {
           els.q.textContent = "等待老师开始…";
@@ -98,6 +98,10 @@
         const canAnswer = !active.ended_at_ms && answeredRound !== active.round_id;
 
         els.opts.innerHTML = "";
+        let correctIndex = null;
+        if (typeof active.correct_index === "number") correctIndex = active.correct_index;
+        else if (summary && typeof summary.correct_index === "number") correctIndex = summary.correct_index;
+
         active.options.forEach((t, i) => {
           const b = document.createElement("button");
           b.className = "bigBtn";
@@ -114,7 +118,6 @@
 
         // Show result after round ends
         if (active.ended_at_ms) {
-          const correctIndex = typeof active.correct_index === "number" ? active.correct_index : (summary ? summary.correct_index : null);
           const correctLetter = typeof correctIndex === "number" ? String.fromCharCode(65 + correctIndex) : "?";
           if (lastAnswer && lastAnswer.round_id === active.round_id) {
             const isCorrect = typeof correctIndex === "number" && lastAnswer.choice === correctIndex;
@@ -122,6 +125,17 @@
           } else {
             setMsg(`本题已结束。正确答案：${correctLetter}`);
           }
+
+          // highlight correct & the user's choice
+          const btns = els.opts.querySelectorAll("button.bigBtn");
+          btns.forEach((b) => {
+            const idx = parseInt(b.dataset.choice, 10);
+            if (typeof correctIndex === "number" && idx === correctIndex) b.classList.add("good");
+            if (lastAnswer && lastAnswer.round_id === active.round_id && idx === lastAnswer.choice && idx !== correctIndex) {
+              b.classList.add("bad");
+            }
+            b.disabled = true;
+          });
         } else if (answeredRound === active.round_id) {
           setMsg("已提交，等待本题结束…");
         } else {
@@ -165,6 +179,10 @@
           const ms = active.ends_at_ms - Date.now();
           const s = Math.max(0, Math.ceil(ms / 1000));
           els.remain.textContent = `${s}s`;
+          // force a state refresh right after time hits 0 (in case SSE misses)
+          if (s === 0) {
+            setTimeout(async () => { try { render(await fetchState()); } catch {} }, 250);
+          }
         }, 200);
       }
 
