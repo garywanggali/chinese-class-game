@@ -34,6 +34,17 @@ h1{margin:0;font-size:20px;letter-spacing:.3px}
   border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);
   border-radius:10px;padding:8px 10px;outline:none
 }
+.input{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 12px;
+  outline:none;
+  min-width: 240px;
+  font-size:14px;
+}
+.input::placeholder{color:rgba(255,255,255,.5)}
 .btn{
   appearance:none;border:1px solid var(--line);border-radius:12px;padding:10px 12px;
   background:rgba(255,255,255,.07);color:var(--text);cursor:pointer;
@@ -63,6 +74,15 @@ h1{margin:0;font-size:20px;letter-spacing:.3px}
 .teamTitle{color:var(--muted);font-size:12px;margin-bottom:4px}
 .score{font-size:28px;font-weight:700}
 .small{color:var(--muted);font-size:12px}
+.tagList{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tag{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  color:var(--muted);
+}
 .btnGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .bigBtn{
   border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.06);

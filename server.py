@@ -59,6 +59,8 @@ class GameState:
   team_score: Dict[str, int] = field(default_factory=lambda: {"A": 0, "B": 0})
   team_correct: Dict[str, int] = field(default_factory=lambda: {"A": 0, "B": 0})
   team_total: Dict[str, int] = field(default_factory=lambda: {"A": 0, "B": 0})
+  # team -> token -> {nickname, joined_at_ms, last_seen_ms}
+  roster: Dict[str, Dict[str, Dict[str, Any]]] = field(default_factory=lambda: {"A": {}, "B": {}})
   last_event_id: int = 0
 
 
@@ -133,6 +135,10 @@ def create_app() -> Flask:
         "team_score": dict(state.team_score),
         "team_correct": dict(state.team_correct),
         "team_total": dict(state.team_total),
+        "roster": {
+          "A": [v.get("nickname") for v in state.roster["A"].values()],
+          "B": [v.get("nickname") for v in state.roster["B"].values()],
+        },
       }
 
   def teacher_snapshot() -> Dict[str, Any]:
@@ -147,6 +153,7 @@ def create_app() -> Flask:
         snap["correct_index"] = r.correct_index
       else:
         snap["answers"] = {"A": {}, "B": {}}
+      snap["roster_full"] = state.roster
     return snap
 
   def close_round_if_needed() -> None:
@@ -214,7 +221,42 @@ def create_app() -> Flask:
       state.team_correct = {"A": 0, "B": 0}
       state.team_total = {"A": 0, "B": 0}
       state.active_round = None
+      state.roster = {"A": {}, "B": {}}
     emit("reset", public_snapshot())
+    return jsonify({"ok": True})
+
+  @app.post("/api/join")
+  def api_join() -> Response:
+    body = request.get_json(silent=True) or {}
+    team = str(body.get("team") or "").upper()
+    token = str(body.get("token") or "")
+    nickname = str(body.get("nickname") or "").strip()
+    if team not in ("A", "B"):
+      abort(400, "bad team")
+    if not token or len(token) > 64:
+      abort(400, "bad token")
+    if not nickname:
+      abort(400, "bad nickname")
+    if len(nickname) > 20:
+      nickname = nickname[:20]
+
+    t = now_ms()
+    with lock:
+      state.roster.setdefault("A", {})
+      state.roster.setdefault("B", {})
+      # allow switching teams: remove from opposite team if exists
+      other = "B" if team == "A" else "A"
+      if token in state.roster.get(other, {}):
+        del state.roster[other][token]
+      existing = state.roster[team].get(token)
+      joined_at = existing.get("joined_at_ms") if isinstance(existing, dict) else None
+      state.roster[team][token] = {
+        "nickname": nickname,
+        "joined_at_ms": joined_at or t,
+        "last_seen_ms": t,
+      }
+
+    emit("roster_updated", public_snapshot())
     return jsonify({"ok": True})
 
   @app.post("/api/teacher/start_round")
@@ -258,6 +300,9 @@ def create_app() -> Flask:
       r = state.active_round
       if not r or r.ended_at_ms is not None:
         return jsonify({"ok": False, "reason": "no_active_round"})
+      # bump last_seen if joined
+      if token in state.roster.get(team, {}):
+        state.roster[team][token]["last_seen_ms"] = now_ms()
       # time window
       if now_ms() > r.started_at_ms + r.duration_s * 1000:
         return jsonify({"ok": False, "reason": "round_ended"})

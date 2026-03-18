@@ -11,36 +11,80 @@
       <header class="top">
         <div>
           <h1>加入对战</h1>
-          <div class="sub">先选择你所在的大组。选好后会自动进入答题页面（下次打开也会记住）。</div>
+          <div class="sub">先输入一个临时昵称，再选择你所在的大组。选好后会自动进入答题页面（下次打开也会记住）。</div>
         </div>
       </header>
 
       <section class="grid" style="grid-template-columns:1fr;">
         <div class="card">
+          <div class="label">你的昵称（临时）</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+            <input id="nickname" class="input" maxlength="20" placeholder="例如：小王 / 1号 / Gary…" />
+            <button id="btnSave" class="btn primary" type="button">确认昵称</button>
+          </div>
           <div class="label">请选择分组</div>
           <div class="btnGrid" style="grid-template-columns:1fr 1fr;">
             <button id="btnA" class="bigBtn" type="button">A<div class="bigBtnText">A 组</div></button>
             <button id="btnB" class="bigBtn" type="button">B<div class="bigBtnText">B 组</div></button>
           </div>
-          <div class="hint">如果选错了，随时回到本页重新选择。</div>
+          <div id="hint" class="hint">提示：如果选错了，随时回到本页重新选择。</div>
         </div>
       </section>
     </div>
 
     <script>
-      const key = "kahoot_team_v1";
-      const saved = localStorage.getItem(key);
-      if (saved === "A" || saved === "B") {
-        location.replace(`/s/${saved}`);
+      const teamKey = "kahoot_team_v1";
+      const nickKey = "kahoot_nickname_v1";
+      const tokenKey = "kahoot_token_v1";
+
+      let token = localStorage.getItem(tokenKey);
+      if (!token) {
+        token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(tokenKey, token);
+      }
+
+      const nickInput = document.getElementById("nickname");
+      const hint = document.getElementById("hint");
+      const savedNick = localStorage.getItem(nickKey) || "";
+      if (savedNick) nickInput.value = savedNick;
+
+      async function join(team) {
+        const nickname = (nickInput.value || "").trim();
+        if (!nickname) {
+          hint.textContent = "请先输入昵称。";
+          return;
+        }
+        localStorage.setItem(nickKey, nickname);
+        localStorage.setItem(teamKey, team);
+        await fetch("/api/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ team, token, nickname }),
+        });
+        location.href = `/s/${team}`;
+      }
+
+      document.getElementById("btnSave").addEventListener("click", () => {
+        const nickname = (nickInput.value || "").trim();
+        if (!nickname) {
+          hint.textContent = "请先输入昵称。";
+          return;
+        }
+        localStorage.setItem(nickKey, nickname);
+        hint.textContent = `昵称已保存：${nickname}（接下来选择 A/B 组）`;
+      });
+
+      const savedTeam = localStorage.getItem(teamKey);
+      if ((savedTeam === "A" || savedTeam === "B") && savedNick) {
+        // auto re-join silently, then go to team page
+        join(savedTeam);
       }
 
       document.getElementById("btnA").addEventListener("click", () => {
-        localStorage.setItem(key, "A");
-        location.href = "/s/A";
+        join("A");
       });
       document.getElementById("btnB").addEventListener("click", () => {
-        localStorage.setItem(key, "B");
-        location.href = "/s/B";
+        join("B");
       });
     </script>
   </body>

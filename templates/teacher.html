@@ -57,6 +57,12 @@
           <div class="hint">
             计分规则（可改）：答对才得分；越快分越高（每个正确答案 100–1000 分）；答错 0 分。
           </div>
+          <div style="margin-top:14px;">
+            <div class="label">已加入同学（按手机/昵称统计）</div>
+            <div class="small">A 组：<span id="countA">0</span> 人　B 组：<span id="countB">0</span> 人</div>
+            <div class="tagList" id="listA"></div>
+            <div class="tagList" id="listB"></div>
+          </div>
         </div>
       </section>
     </div>
@@ -71,6 +77,10 @@
         scoreB: document.getElementById("scoreB"),
         accA: document.getElementById("accA"),
         accB: document.getElementById("accB"),
+        countA: document.getElementById("countA"),
+        countB: document.getElementById("countB"),
+        listA: document.getElementById("listA"),
+        listB: document.getElementById("listB"),
         duration: document.getElementById("duration"),
         btnStart: document.getElementById("btnStart"),
         btnReset: document.getElementById("btnReset"),
@@ -84,6 +94,26 @@
         els.scoreB.textContent = s.team_score?.B ?? 0;
         els.accA.textContent = `${s.team_correct?.A ?? 0}/${s.team_total?.A ?? 0}`;
         els.accB.textContent = `${s.team_correct?.B ?? 0}/${s.team_total?.B ?? 0}`;
+
+        const roster = s.roster || { A: [], B: [] };
+        const listA = Array.isArray(roster.A) ? roster.A.filter(Boolean) : [];
+        const listB = Array.isArray(roster.B) ? roster.B.filter(Boolean) : [];
+        els.countA.textContent = String(listA.length);
+        els.countB.textContent = String(listB.length);
+        els.listA.innerHTML = "";
+        els.listB.innerHTML = "";
+        listA.forEach((name) => {
+          const t = document.createElement("span");
+          t.className = "tag";
+          t.textContent = name;
+          els.listA.appendChild(t);
+        });
+        listB.forEach((name) => {
+          const t = document.createElement("span");
+          t.className = "tag";
+          t.textContent = name;
+          els.listB.appendChild(t);
+        });
 
         active = s.active_round;
         if (!active) {
@@ -144,6 +174,7 @@
         es.addEventListener("round_started", (e) => renderState(JSON.parse(e.data)));
         es.addEventListener("round_ended", (e) => renderState(JSON.parse(e.data)));
         es.addEventListener("reset", (e) => renderState(JSON.parse(e.data)));
+        es.addEventListener("roster_updated", (e) => renderState(JSON.parse(e.data)));
         es.onerror = () => {
           // fallback: teacher state polling
           setTimeout(async () => {
