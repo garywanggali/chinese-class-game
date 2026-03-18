@@ -219,6 +219,10 @@ def create_app() -> Flask:
   def join() -> Response:
     return Response(render_template("join.html"))
 
+  @app.get("/s/")
+  def join_slash() -> Response:
+    return redirect(url_for("join"))
+
   @app.get("/teacher")
   def teacher() -> Response:
     # teacher key is kept server-side; we set it into a cookie for convenience on this machine
