@@ -270,7 +270,14 @@ def create_app() -> Flask:
   @app.post("/teacher-login")
   def teacher_login_post() -> Response:
     if not teacher_password:
-      abort(403)
+      return Response(
+        render_template(
+          "teacher_login.html",
+          error="服务器未设置 TEACHER_PASSWORD。请设置后重启服务。",
+          has_password=False,
+        ),
+        status=403,
+      )
     body = request.form or {}
     pw = (body.get("password") or "").strip()
     if pw != teacher_password:
