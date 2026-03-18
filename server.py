@@ -269,22 +269,26 @@ def create_app() -> Flask:
 
   @app.post("/teacher-login")
   def teacher_login_post() -> Response:
-    if not teacher_password:
-      return Response(
-        render_template(
-          "teacher_login.html",
-          error="服务器未设置 TEACHER_PASSWORD。请设置后重启服务。",
-          has_password=False,
-        ),
-        status=403,
-      )
-    body = request.form or {}
-    pw = (body.get("password") or "").strip()
-    if pw != teacher_password:
-      return Response(render_template("teacher_login.html", error="密码错误", has_password=True), status=403)
-    resp = Response(redirect(url_for("teacher")))
-    resp.set_cookie("teacher_key", state.teacher_key, httponly=False, samesite="Lax")
-    return resp
+    try:
+      if not teacher_password:
+        return Response(
+          render_template(
+            "teacher_login.html",
+            error="服务器未设置 TEACHER_PASSWORD。请设置后重启服务。",
+            has_password=False,
+          ),
+          status=403,
+        )
+      body = request.form or {}
+      pw = (body.get("password") or "").strip()
+      if pw != teacher_password:
+        return Response(render_template("teacher_login.html", error="密码错误", has_password=True), status=403)
+      resp = Response(redirect(url_for("teacher")))
+      resp.set_cookie("teacher_key", state.teacher_key, httponly=False, samesite="Lax")
+      return resp
+    except Exception:
+      # 避免前端看到“Internal Server Error”；详细错误请看服务器日志。
+      return Response(render_template("teacher_login.html", error="服务器内部错误，请查看 logs/server.log", has_password=True), status=500)
 
   @app.get("/s/<team>")
   def student(team: str) -> Response:
