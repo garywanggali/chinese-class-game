@@ -71,6 +71,7 @@
       let answeredRound = null;
       let lastAnswer = null; // { round_id, choice }
       let tickTimer = null;
+      let settlePoll = null;
 
       function setMsg(t) { els.msg.textContent = t || ""; }
 
@@ -179,9 +180,27 @@
           const ms = active.ends_at_ms - Date.now();
           const s = Math.max(0, Math.ceil(ms / 1000));
           els.remain.textContent = `${s}s`;
-          // force a state refresh right after time hits 0 (in case SSE misses)
-          if (s === 0) {
-            setTimeout(async () => { try { render(await fetchState()); } catch {} }, 250);
+          // force settlement refresh after time hits 0 (in case SSE misses or settlement lags)
+          if (s === 0 && !active.ended_at_ms) {
+            if (!settlePoll) {
+              let tries = 0;
+              settlePoll = setInterval(async () => {
+                tries += 1;
+                try {
+                  const st = await fetchState();
+                  render(st);
+                  const base = st && st.state ? st.state : st;
+                  if (base && base.active_round && base.active_round.ended_at_ms) {
+                    clearInterval(settlePoll);
+                    settlePoll = null;
+                  }
+                } catch {}
+                if (tries >= 20) { // ~6s
+                  clearInterval(settlePoll);
+                  settlePoll = null;
+                }
+              }, 300);
+            }
           }
         }, 200);
       }
