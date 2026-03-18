@@ -174,12 +174,22 @@ function startMatch() {
 
   const chosen = shuffle(state.qa).slice(0, Math.min(size, state.qa.length));
   state.match.pairs = chosen.map((x, i) => ({ id: `p${i}`, q: x.q, a: x.a, locked: false }));
-  renderMatch(true);
+  renderMatch(false);
 }
 
 function renderMatch(reset) {
   if (state.qa.length === 0) return;
-  if (reset || state.match.pairs.length === 0) startMatch();
+  if (reset || state.match.pairs.length === 0) {
+    // reset 仅负责“需要新抽一轮题”，避免 startMatch <-> renderMatch 互相递归
+    const size = clamp(parseInt($("#matchSize").value, 10) || 6, 3, 10);
+    state.match.size = size;
+    state.match.score = 0;
+    state.match.lockedCount = 0;
+    state.match.selectedLeft = null;
+    state.match.selectedRight = null;
+    const chosen = shuffle(state.qa).slice(0, Math.min(size, state.qa.length));
+    state.match.pairs = chosen.map((x, i) => ({ id: `p${i}`, q: x.q, a: x.a, locked: false }));
+  }
 
   const leftCol = $("#matchLeft");
   const rightCol = $("#matchRight");
@@ -306,7 +316,7 @@ loadQA().catch((err) => {
     <div class="panel card">
       <p class="q">加载失败</p>
       <p class="hint">${String(err && err.message ? err.message : err)}</p>
-      <p class="small">请确认已用本地服务器打开（例如 python -m http.server），并且存在 data/qa.json。</p>
+      <p class="small">如果你是在 GitHub Pages 打开：请强制刷新（Ctrl/⌘+Shift+R）等待 1-2 分钟同步；如果是本地打开：请用本地服务器（例如 python -m http.server）。</p>
     </div>
   `;
 });
