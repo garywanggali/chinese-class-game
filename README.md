@@ -32,6 +32,47 @@ python server.py
 
 课堂同学用手机连同一 Wi‑Fi 时，把 `127.0.0.1` 换成老师电脑的局域网 IP（例如 `192.168.1.23`）。
 
+## 部署到老师服务器（按教程）
+
+对应教程见：`https://static.yunguhs.com/tutorials/deploy/`
+
+### 在服务器上操作（示例端口 5001）
+
+1) SSH 登录
+
+```bash
+ssh 你的英文名@110.40.153.38
+```
+
+2) 拉取代码（用你的仓库链接）
+
+```bash
+git clone https://github.com/garywanggali/chinese-class-game.git
+cd chinese-class-game
+```
+
+3) 运行（后台）
+
+> 注意：端口要按老师要求用 `5000-5010`（例如 5001）。
+
+```bash
+chmod +x run.sh stop.sh
+./run.sh 5001
+```
+
+4) 浏览器打开
+
+- 教师端：`http://110.40.153.38:5001/teacher`
+- 学生端 A：`http://110.40.153.38:5001/s/A`
+- 学生端 B：`http://110.40.153.38:5001/s/B`
+
+### 停止/重启
+
+```bash
+./stop.sh
+./run.sh 5001
+```
+
 ### 方式二：静态小游戏（不分组对战）
 
 由于浏览器对本地 `fetch` 有限制，请用本地静态服务器打开：
