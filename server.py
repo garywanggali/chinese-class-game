@@ -221,7 +221,23 @@ def create_app() -> Flask:
           if is_correct:
             state.team_correct[team] += 1
             dt = max(0, at_ms - r.started_at_ms)
-            pts = max(100, 1000 - int(dt / 10))
+            # Scoring:
+            # - max_score = 1000 at the start
+            # - floor = 500 when remaining time <= 10% (i.e. dt >= 90% of duration)
+            # - linear uniform decrease from start to floor during the first 90%
+            max_score = 1000
+            floor = 500
+            total_ms = max(1, int(r.duration_s * 1000))
+            threshold_dt = int(total_ms * 0.9)  # when remaining time is 10%
+            if threshold_dt <= 0 or dt >= threshold_dt:
+              pts = floor
+            else:
+              ratio = dt / threshold_dt  # 0..1
+              if ratio < 0:
+                ratio = 0.0
+              if ratio > 1:
+                ratio = 1.0
+              pts = int(max_score - (max_score - floor) * ratio)
             state.team_score[team] += pts
             r.points[team][token] = pts
             round_summary["teams"][team]["correct"].append({"name": nickname, "pts": pts})
