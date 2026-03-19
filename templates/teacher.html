@@ -32,6 +32,9 @@
         <div class="card">
           <div class="label">当前题目</div>
           <div id="q" class="q">等待开始…</div>
+          <div class="small" style="margin-top:-6px;color:rgba(255,255,255,.65);">
+            题号：<strong id="qNo">0</strong>/<span id="qTotal">0</span>
+          </div>
           <div class="timerBig" id="timerBox">
             <div>
               <div class="timerLabel">倒计时</div>
@@ -94,6 +97,8 @@
       const els = {
         q: document.getElementById("q"),
         options: document.getElementById("options"),
+        qNo: document.getElementById("qNo"),
+        qTotal: document.getElementById("qTotal"),
         status: document.getElementById("status"),
         remain: document.getElementById("remain"),
         timerBox: document.getElementById("timerBox"),
@@ -158,6 +163,8 @@
         els.scoreB.textContent = base.team_score?.B ?? 0;
         els.accA.textContent = `${base.team_correct?.A ?? 0}/${base.team_total?.A ?? 0}`;
         els.accB.textContent = `${base.team_correct?.B ?? 0}/${base.team_total?.B ?? 0}`;
+        els.qNo.textContent = base.question_no ?? 0;
+        els.qTotal.textContent = base.question_total ?? 0;
 
         const roster = base.roster || { A: [], B: [] };
         const listA = Array.isArray(roster.A) ? roster.A.filter(Boolean) : [];

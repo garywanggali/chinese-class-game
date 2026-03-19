@@ -65,6 +65,7 @@ class GameState:
   # team -> token -> {nickname, joined_at_ms, last_seen_ms}
   roster: Dict[str, Dict[str, Dict[str, Any]]] = field(default_factory=lambda: {"A": {}, "B": {}})
   last_event_id: int = 0
+  round_seq: int = 0
 
 
 class EventBus:
@@ -145,6 +146,8 @@ def create_app() -> Flask:
         "team_score": dict(state.team_score),
         "team_correct": dict(state.team_correct),
         "team_total": dict(state.team_total),
+        "question_no": state.round_seq if state.round_seq > 0 else 0,
+        "question_total": len(state.qa),
         "roster": {
           "A": [v.get("nickname") for v in state.roster["A"].values()],
           "B": [v.get("nickname") for v in state.roster["B"].values()],
@@ -173,6 +176,8 @@ def create_app() -> Flask:
       "team_score": dict(state.team_score),
       "team_correct": dict(state.team_correct),
       "team_total": dict(state.team_total),
+      "question_no": state.round_seq if state.round_seq > 0 else 0,
+      "question_total": len(state.qa),
       "roster": {
         "A": [v.get("nickname") for v in state.roster["A"].values()],
         "B": [v.get("nickname") for v in state.roster["B"].values()],
@@ -332,6 +337,7 @@ def create_app() -> Flask:
       state.team_total = {"A": 0, "B": 0}
       state.active_round = None
       state.roster = {"A": {}, "B": {}}
+      state.round_seq = 0
     emit("reset", public_snapshot())
     return jsonify({"ok": True})
 
@@ -378,6 +384,7 @@ def create_app() -> Flask:
     with lock:
       if not state.qa:
         abort(400, "No questions")
+      state.round_seq += 1
       qa_item = secrets.choice(state.qa)
       options, correct_index = build_options(qa_item["a"], 4)
       r = RoundState(

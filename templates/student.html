@@ -12,6 +12,9 @@
         <div>
           <h1>学生端｜{{ team }}组</h1>
           <div class="sub">看到题目后，尽快选 A/B/C/D。每台手机每题只能提交一次。</div>
+          <div class="small" style="margin-top:10px;color:rgba(255,255,255,.65);">
+            题号：<strong id="qNo">0</strong>/<span id="qTotal">0</span>
+          </div>
         </div>
         <div class="actions">
           <div class="pill">当前组：<strong>{{ team }}</strong></div>
@@ -56,6 +59,8 @@
         remain: document.getElementById("remain"),
         scoreA: document.getElementById("scoreA"),
         scoreB: document.getElementById("scoreB"),
+        qNo: document.getElementById("qNo"),
+        qTotal: document.getElementById("qTotal"),
       };
 
       const tokenKey = "kahoot_token_v1";
@@ -84,6 +89,8 @@
         els.scoreA.textContent = (base.team_score && base.team_score.A) ? base.team_score.A : 0;
         els.scoreB.textContent = (base.team_score && base.team_score.B) ? base.team_score.B : 0;
         active = base.active_round;
+        els.qNo.textContent = base.question_no ?? 0;
+        els.qTotal.textContent = base.question_total ?? 0;
         if (!active) {
           els.q.textContent = "等待老师开始…";
           els.opts.innerHTML = "";
