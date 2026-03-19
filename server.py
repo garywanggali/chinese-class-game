@@ -66,6 +66,8 @@ class GameState:
   roster: Dict[str, Dict[str, Dict[str, Any]]] = field(default_factory=lambda: {"A": {}, "B": {}})
   last_event_id: int = 0
   round_seq: int = 0
+  # question indices "bag" (no repeat until reset)
+  question_bag: List[int] = field(default_factory=list)
 
 
 class EventBus:
@@ -100,6 +102,13 @@ def create_app() -> Flask:
   state = GameState(qa=qa, teacher_key=teacher_key)
   bus = EventBus()
   lock = threading.Lock()
+
+  def reshuffle_bag() -> None:
+    # Prepare shuffled question indices for this "session"
+    state.question_bag = list(range(len(state.qa)))
+    secrets.SystemRandom().shuffle(state.question_bag)
+
+  reshuffle_bag()
 
   def emit(event_type: str, payload: Dict[str, Any]) -> None:
     with lock:
@@ -338,6 +347,7 @@ def create_app() -> Flask:
       state.active_round = None
       state.roster = {"A": {}, "B": {}}
       state.round_seq = 0
+      reshuffle_bag()
     emit("reset", public_snapshot())
     return jsonify({"ok": True})
 
@@ -384,8 +394,12 @@ def create_app() -> Flask:
     with lock:
       if not state.qa:
         abort(400, "No questions")
+      if not state.question_bag:
+        # If bag is empty, reshuffle so the teacher can keep playing.
+        reshuffle_bag()
       state.round_seq += 1
-      qa_item = secrets.choice(state.qa)
+      q_idx = state.question_bag.pop()
+      qa_item = state.qa[q_idx]
       options, correct_index = build_options(qa_item["a"], 4)
       r = RoundState(
         round_id=secrets.token_urlsafe(8),
